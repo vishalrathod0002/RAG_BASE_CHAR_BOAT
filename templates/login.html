@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OP AI | Access</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --bg: #050505;
+            --card-bg: rgba(20, 20, 25, 0.4);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --primary: #8b5cf6; 
+            --secondary: #ec4899; 
+            --accent: #06b6d4; 
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Aurora Background */
+        .aurora {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; pointer-events: none;
+        }
+        .blob {
+            position: absolute; filter: blur(80px); opacity: 0.6; animation: float 20s infinite ease-in-out; border-radius: 50%;
+        }
+        .b1 { width: 500px; height: 500px; background: var(--primary); top: -100px; left: -100px; }
+        .b2 { width: 400px; height: 400px; background: var(--secondary); bottom: -50px; right: -50px; animation-delay: -5s; }
+        .b3 { width: 300px; height: 300px; background: var(--accent); top: 40%; left: 60%; animation-delay: -10s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        /* Auth Card */
+        .auth-card {
+            position: relative; z-index: 10;
+            width: 400px;
+            background: var(--card-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        .brand { 
+            text-align: center; font-size: 2rem; font-weight: 700; margin-bottom: 30px;
+            background: linear-gradient(to right, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* Tabs */
+        .tabs { display: flex; margin-bottom: 25px; position: relative; }
+        .tab-btn {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer;
+            color: var(--text-muted); font-weight: 600; transition: 0.3s;
+        }
+        .tab-btn.active { color: var(--text-main); }
+        .tab-slider {
+            position: absolute; bottom: 0; left: 0; width: 50%; height: 2px;
+            background: var(--primary); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2px;
+        }
+        /* Slider logic via JS classes, but let's do basic CSS nth-child trick if possible, or JS */
+
+        .form-group { margin-bottom: 20px; }
+        .input-label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+        .auth-input {
+            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--card-border);
+            padding: 12px; border-radius: 12px; color: white; font-family: inherit;
+            outline: none; transition: 0.3s;
+        }
+        .auth-input:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); }
+
+        .btn-auth {
+            width: 100%; padding: 14px; border-radius: 16px; border: none;
+            background: linear-gradient(135deg, var(--primary), #6d28d9);
+            color: white; font-weight: 600; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+            transition: 0.3s;
+        }
+        .btn-auth:hover { box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5); transform: translateY(-1px); }
+        .btn-auth:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .msg-box {
+            margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center;
+            font-size: 0.85rem; display: none;
+        }
+        .msg-error { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .msg-success { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="aurora">
+        <div class="blob b1"></div>
+        <div class="blob b2"></div>
+        <div class="blob b3"></div>
+    </div>
+
+    <div class="auth-card">
+        <div class="brand"><i class="fa-solid fa-sparkles"></i> OP Chat Boat</div>
+
+        <div class="tabs">
+            <div class="tab-btn active" id="tab-login" onclick="switchTab('login')">Login</div>
+            <div class="tab-btn" id="tab-register" onclick="switchTab('register')">Register</div>
+            <div class="tab-slider" id="tab-slider"></div>
+        </div>
+
+        <form id="auth-form" onsubmit="handleAuth(event)">
+            <div id="register-fields" class="hidden">
+                <div class="form-group">
+                    <label class="input-label">Username</label>
+                    <input type="text" id="reg-username" class="auth-input" placeholder="Choose a username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="input-label">Username</label>
+                <input type="text" id="login-username" class="auth-input" placeholder="Enter username">
+            </div>
+
+            <div class="form-group">
+                <label class="input-label">Password</label>
+                <input type="password" id="password" class="auth-input" placeholder="Enter password">
+            </div>
+
+            <button type="submit" class="btn-auth" id="submit-btn">Sign In</button>
+        </form>
+
+        <div id="msg-box" class="msg-box"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script>
+        let currentMode = 'login';
+        const slider = document.getElementById('tab-slider');
+        const submitBtn = document.getElementById('submit-btn');
+        const regFields = document.getElementById('register-fields');
+        const loginFields = document.getElementById('login-username'); // Actually kept in DOM, just hide logic
+        const msgBox = document.getElementById('msg-box');
+
+        function switchTab(mode) {
+            currentMode = mode;
+            
+            // Update UI
+            if(mode === 'login') {
+                document.getElementById('tab-login').classList.add('active');
+                document.getElementById('tab-register').classList.remove('active');
+                slider.style.left = '0';
+                regFields.classList.add('hidden');
+                document.getElementById('login-username').parentElement.classList.remove('hidden');
+                submitBtn.innerText = 'Sign In';
+            } else {
+                document.getElementById('tab-login').classList.remove('active');
+                document.getElementById('tab-register').classList.add('active');
+                slider.style.left = '50%';
+                regFields.classList.remove('hidden');
+                document.getElementById('login-username').parentElement.classList.add('hidden');
+                submitBtn.innerText = 'Create Account';
+            }
+            hideMsg();
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            hideMsg();
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Processing...';
+
+            const password = document.getElementById('password').value;
+            let username, url;
+
+            if(currentMode === 'register') {
+                username = document.getElementById('reg-username').value;
+                url = '/api/register';
+            } else {
+                username = document.getElementById('login-username').value;
+                url = '/api/login';
+            }
+
+            if(!username || !password) {
+                showMsg('Please fill in all fields', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerText = currentMode === 'login' ? 'Sign In' : 'Create Account';
+                return;
+            }
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await res.json();
+
+                if(data.success) {
+                    if(currentMode === 'register') {
+                        showMsg('Account created! Please login.', 'success');
+                        setTimeout(() => switchTab('login'), 1500);
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    showMsg(data.message, 'error');
+                }
+            } catch (err) {
+                showMsg('Network error', 'error');
+            }
+            
+            submitBtn.disabled = false;
+            submitBtn.innerText = currentMode === 'login' ? 'Sign In' : 'Create Account';
+        }
+
+        function showMsg(text, type) {
+            msgBox.innerText = text;
+            msgBox.className = `msg-box msg-${type}`;
+            msgBox.style.display = 'block';
+        }
+        function hideMsg() { msgBox.style.display = 'none'; }
+    </script>
+</body>
+</html>
+```

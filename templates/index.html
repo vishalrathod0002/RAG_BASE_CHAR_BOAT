@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OP Neural Interface</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --bg: #050505;
+            --glass: rgba(10, 20, 40, 0.6);
+            --glass-border: rgba(0, 243, 255, 0.2);
+            --neon: #00f3ff;
+            --neon-glow: rgba(0, 243, 255, 0.4);
+            --text-main: #e0f7ff;
+            --text-dim: #5a7d9a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- CANVAS BACKGROUND --- */
+        #bg-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        /* --- LAYOUT --- */
+        .app-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            height: 100%;
+            background: radial-gradient(circle at center, transparent 0%, var(--bg) 90%);
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 300px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            transform: translateX(0);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .sidebar.collapsed { transform: translateX(-100%); position: absolute; }
+
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--neon);
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px var(--neon-glow);
+            letter-spacing: 2px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .section-header {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--neon);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            margin-top: 20px;
+        }
+
+        /* CYBER BUTTONS */
+        .cyber-btn {
+            width: 100%;
+            background: rgba(0, 243, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--neon);
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            margin-bottom: 10px;
+        }
+        .cyber-btn:hover {
+            background: var(--neon);
+            color: #000;
+            box-shadow: 0 0 20px var(--neon-glow);
+        }
+        .cyber-btn::before {
+            content: '';
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: translateX(-100%);
+            transition: 0.5s;
+        }
+        .cyber-btn:hover::before { transform: translateX(100%); }
+
+        .file-list { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .file-item {
+            background: rgba(255,255,255,0.02);
+            border-left: 2px solid var(--text-dim);
+            padding: 10px;
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            display: flex; justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .file-item:hover {
+            background: rgba(255,255,255,0.05);
+            padding-left: 15px; /* Slight move right */
+        }
+        .file-item.active { border-color: var(--neon); color: var(--neon); }
+
+        /* --- MAIN CONTENT --- */
+        .main-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+        /* HUD HEADER */
+        .hud-header {
+            height: 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(5, 5, 5, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .clock-widget {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        .date-widget { font-size: 0.9rem; color: var(--text-dim); }
+
+        .weather-widget {
+            display: flex; align-items: center; gap: 15px;
+            background: rgba(0, 243, 255, 0.05);
+            padding: 8px 20px;
+            border: 1px solid var(--glass-border);
+            border-radius: 4px;
+        }
+        .weather-temp { font-size: 1.2rem; font-weight: 700; }
+        .weather-desc { font-size: 0.8rem; color: var(--text-dim); }
+
+        /* CHAT AREA */
+        .chat-stream {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* MESSAGES */
+        .msg {
+            max-width: 80%;
+            padding: 15px 20px;
+            position: relative;
+            animation: slideIn 0.4s ease-out;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .msg.user {
+            align-self: flex-end;
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid var(--neon);
+            color: #fff;
+            border-radius: 0 15px 15px 15px;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+
+        .msg.ai {
+            align-self: flex-start;
+            background: rgba(20, 30, 50, 0.6);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            border-radius: 15px 0 15px 15px;
+        }
+        
+        .msg.ai::before {
+            content: 'AI_CORE';
+            position: absolute; top: -20px; left: 0;
+            font-size: 0.7rem; color: var(--neon); font-family: 'JetBrains Mono';
+        }
+
+        /* INPUT AREA */
+        .input-deck {
+            padding: 30px;
+            display: flex; justify-content: center;
+        }
+        .input-cyber {
+            width: 100%; max-width: 800px;
+            background: rgba(5, 5, 5, 0.8);
+            border: 1px solid var(--glass-border);
+            padding: 10px;
+            display: flex; gap: 10px;
+            box-shadow: 0 -5px 20px rgba(0, 243, 255, 0.1);
+        }
+        .input-cyber:focus-within { border-color: var(--neon); }
+        
+        #user-msg {
+            flex: 1;
+            background: transparent; border: none;
+            color: white; font-family: 'Rajdhani', sans-serif;
+            font-size: 1.1rem; padding: 10px; outline: none;
+        }
+
+        .send-trigger {
+            width: 50px; height: 50px;
+            background: var(--neon); border: none;
+            color: #000; cursor: pointer;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+            transition: 0.3s;
+        }
+        .send-trigger:hover { transform: scale(1.1); box-shadow: 0 0 15px var(--neon); }
+
+        /* --- DOCUMENT READER MODAL (NEW) --- */
+        .doc-modal {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center; align-items: center;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .doc-content {
+            width: 70%; height: 80%;
+            background: var(--bg);
+            border: 1px solid var(--neon);
+            padding: 30px;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
+            position: relative;
+        }
+        .doc-close {
+            position: absolute; top: 20px; right: 20px;
+            background: none; border: none; color: var(--neon);
+            font-size: 2rem; cursor: pointer;
+        }
+        .doc-title {
+            font-family: 'JetBrains Mono'; color: var(--neon);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px; margin-bottom: 20px;
+        }
+        .doc-text {
+            font-family: 'Rajdhani', line-height: 1.8; font-size: 1.1rem; white-space: pre-wrap;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas Background -->
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="app-container">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo"><i class="fa-solid fa-microchip"></i> Omni Chat Boat</div>
+
+            <!-- ADMIN ONLY CONTROLS -->
+            {% if role == 'admin' %}
+            <div class="section-header">Data Uplink</div>
+            <input type="file" id="file-input" style="display: none;" onchange="uploadFile()">
+            <button class="cyber-btn" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-upload"></i> UPLOAD DOCUMENT
+            </button>
+
+            <div class="section-header">Vector Memory</div>
+            <button class="cyber-btn" id="load-btn" onclick="loadIndex()">
+                <i class="fa-solid fa-bolt"></i> LOAD TO RAM
+            </button>
+            {% endif %}
+            <!-- END ADMIN CONTROLS -->
+
+            <!-- SHARED: FILE LIST (Click to Read) -->
+            <div class="section-header">Active Files</div>
+            <div class="file-list" id="file-list">
+                <!-- JS Populates -->
+            </div>
+
+            <div style="margin-top: auto;">
+                <a href="/logout" style="text-decoration: none; color: var(--neon); font-size: 0.8rem; font-family: 'JetBrains Mono';">
+                    <i class="fa-solid fa-power-off"></i> TERMINATE SESSION
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="main-area">
+            <!-- Header with Widgets -->
+            <header class="hud-header">
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    {% if role == 'admin' %}
+                    <button class="cyber-btn" style="width: auto; padding: 5px 15px;" onclick="toggleSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    {% endif %}
+                    <div>
+                        <div class="clock-widget" id="clock">00:00:00</div>
+                        <div class="date-widget" id="date">LOADING DATE...</div>
+                    </div>
+                </div>
+
+                <div class="weather-widget">
+                    <i class="fa-solid fa-cloud-sun" style="color: #fbbf24; font-size: 1.5rem;"></i>
+                    <div>
+                        <div class="weather-temp">24°C</div>
+                        <div class="weather-desc">SYS_OPTIMAL</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Chat Stream -->
+            <div class="chat-stream" id="messages">
+                <div style="text-align: center; margin-top: 50px; opacity: 0.7;">
+                    <h2 style="letter-spacing: 5px; margin-bottom: 10px;">NEURAL LINK ESTABLISHED</h2>
+                    <p>Awaiting Input Protocol...</p>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-deck">
+                <div class="input-cyber">
+                    <input type="text" id="user-msg" placeholder="Enter command..." onkeypress="handleEnter(event)">
+                    <button class="send-trigger" onclick="sendMessage()"><i class="fa-solid fa-terminal"></i></button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Document Reader Modal (Hidden by default) -->
+    <div id="doc-modal" class="doc-modal">
+        <div class="doc-content">
+            <button class="doc-close" onclick="closeModal()">&times;</button>
+            <h2 class="doc-title" id="modal-filename">FILENAME</h2>
+            <div class="doc-text" id="modal-body">Loading content...</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script>
+        const role = "{{ role }}";
+        const messagesContainer = document.getElementById('messages');
+        const fileList = document.getElementById('file-list');
+
+        // --- 1. BACKGROUND CANVAS ANIMATION ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        for (let i = 0; i < 60; i++) particles.push(new Particle());
+        function animateBg() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, index) => {
+                p.update(); p.draw();
+                for (let j = index; j < particles.length; j++) {
+                    const dx = p.x - particles[j].x; const dy = p.y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.strokeStyle = `rgba(0, 243, 255, ${1 - dist / 150})`;
+                        ctx.lineWidth = 0.5; ctx.beginPath();
+                        ctx.moveTo(p.x, p.y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        // --- 2. CLOCK & DATE ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('date').innerText = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        // --- 3. LOAD FILES (Click to Read) ---
+        async function loadFiles() {
+            if (!fileList) return;
+            const res = await fetch('/api/files');
+            const data = await res.json();
+            fileList.innerHTML = '';
+            if (data.files.length === 0) fileList.innerHTML = '<div style="color:var(--text-dim); padding:10px;">NO DATA</div>';
+            else {
+                data.files.forEach(filename => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    // Added click event to open document
+                    div.innerHTML = `<span>${filename}</span> <span style="font-size:0.7rem; color:var(--text-dim);">[READ]</span>`;
+                    div.onclick = () => openDocument(filename);
+                    fileList.appendChild(div);
+                });
+            }
+        }
+        loadFiles();
+
+        // --- 4. OPEN DOCUMENT (Modal) ---
+        async function openDocument(filename) {
+            const modal = document.getElementById('doc-modal');
+            const title = document.getElementById('modal-filename');
+            const body = document.getElementById('modal-body');
+
+            modal.style.display = 'flex';
+            title.innerText = filename;
+            body.innerText = 'DECRYPTING CONTENT...';
+
+            try {
+                // Fetch content from new backend route
+                const res = await fetch(`/api/read_file/${filename}`);
+                const data = await res.json();
+
+                if (res.ok) {
+                    body.innerText = data.content;
+                } else {
+                    body.innerText = 'ERROR: ' + data.error;
+                }
+            } catch (e) {
+                body.innerText = 'CONNECTION ERROR';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('doc-modal').style.display = 'none';
+        }
+
+        // --- 5. APP LOGIC (Same as before) ---
+        async function uploadFile() {
+            const input = document.getElementById('file-input');
+            if (input.files.length === 0) return;
+            const formData = new FormData(); formData.append('file', input.files[0]);
+            
+            const div = document.createElement('div');
+            div.className = 'file-item active';
+            div.innerHTML = `<span>UPLOADING...</span> <i class="fa-solid fa-spinner fa-spin"></i>`;
+            fileList.prepend(div);
+
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (res.ok) {
+                div.innerHTML = `<span>${data.filename}</span> <span style="color:var(--neon);">UPLOADED</span>`;
+                addSystemMsg(`FILE INGESTED: ${data.filename}`);
+                // Refresh list to make it clickable
+                loadFiles(); 
+            }
+            input.value = '';
+        }
+
+        async function loadIndex() {
+            const btn = document.getElementById('load-btn');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> PROCESSING...';
+            const res = await fetch('/api/load_index', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                const items = fileList.querySelectorAll('.file-item span:last-child');
+                items.forEach(i => i.innerText = 'ACTIVE');
+                addSystemMsg('VECTOR DB MEMORY UPDATED');
+            }
+            btn.innerHTML = '<i class="fa-solid fa-bolt"></i> LOAD TO RAM';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-msg');
+            const text = input.value.trim();
+            if (!text) return;
+
+            if(messagesContainer.children[0].innerText.includes('NEURAL LINK')) messagesContainer.innerHTML = '';
+            appendMsg('user', text);
+            input.value = '';
+
+            const loadId = 'l-' + Date.now();
+            const div = document.createElement('div');
+            div.id = loadId; div.className = 'msg ai';
+            div.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> PROCESSING...';
+            messagesContainer.appendChild(div);
+
+            const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ query: text }) });
+            document.getElementById(loadId).remove();
+            const data = await res.json();
+            appendMsg('ai', res.ok ? data.answer : 'ERROR');
+        }
+
+        function appendMsg(role, text) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            div.innerText = text;
+            messagesContainer.appendChild(div);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addSystemMsg(text) {
+            const div = document.createElement('div');
+            div.style.textAlign = 'center';
+            div.style.fontSize = '0.8rem';
+            div.style.color = 'var(--neon)';
+            div.style.margin = '10px 0';
+            div.style.fontFamily = 'JetBrains Mono';
+            div.innerText = `[SYSTEM]: ${text}`;
+            messagesContainer.appendChild(div);
+            if(messagesContainer.children[0].innerText.includes('NEURAL LINK')) messagesContainer.innerHTML = '';
+        }
+
+        function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+    </script>
+</body>
+</html>
